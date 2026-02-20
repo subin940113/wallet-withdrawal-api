@@ -1,7 +1,7 @@
 package com.example.wallet.infrastructure.lock
 
-import com.example.wallet.common.error.BusinessException
 import com.example.wallet.common.error.ErrorCode
+import com.example.wallet.common.exception.BusinessException
 import org.redisson.api.RedissonClient
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service

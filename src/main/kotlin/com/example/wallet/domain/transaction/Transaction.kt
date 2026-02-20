@@ -1,6 +1,6 @@
 package com.example.wallet.domain.transaction
 
-import com.example.wallet.application.withdraw.WithdrawCommand
+import com.example.wallet.application.command.WithdrawWalletCommand
 import com.example.wallet.common.error.ErrorCode
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -41,7 +41,7 @@ class Transaction(
 
     companion object {
         fun success(
-            command: WithdrawCommand,
+            command: WithdrawWalletCommand,
             balanceAfter: Long,
         ): Transaction =
             Transaction(
@@ -54,7 +54,7 @@ class Transaction(
             )
 
         fun failure(
-            command: WithdrawCommand,
+            command: WithdrawWalletCommand,
             errorCode: ErrorCode,
         ): Transaction =
             Transaction(

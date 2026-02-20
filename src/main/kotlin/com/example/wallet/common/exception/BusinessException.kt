@@ -1,4 +1,6 @@
-package com.example.wallet.common.error
+package com.example.wallet.common.exception
+
+import com.example.wallet.common.error.ErrorCode
 
 class BusinessException(
     val errorCode: ErrorCode,

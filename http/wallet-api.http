@@ -1,0 +1,50 @@
+### Wallet API (로컬) · User-Id 헤더 필수
+@baseUrl = http://localhost:8080
+@userId = 1
+@walletId = 1
+
+### 거래 내역 조회
+GET {{baseUrl}}/api/wallets/{{walletId}}/transactions?page=0&size=20
+User-Id: {{userId}}
+
+### 출금 성공 - 1
+POST {{baseUrl}}/api/wallets/{{walletId}}/withdraw
+User-Id: {{userId}}
+Content-Type: application/json
+
+{"transaction_id": "withdraw-001", "amount": 10000}
+
+### 출금 성공 - 2
+POST {{baseUrl}}/api/wallets/{{walletId}}/withdraw
+User-Id: {{userId}}
+Content-Type: application/json
+
+{"transaction_id": "withdraw-002", "amount": 30000}
+
+### 출금 멱등 (같은 transaction_id 재요청)
+POST {{baseUrl}}/api/wallets/{{walletId}}/withdraw
+User-Id: {{userId}}
+Content-Type: application/json
+
+{"transaction_id": "withdraw-001", "amount": 10000}
+
+### 출금 실패 - 잔액 부족
+POST {{baseUrl}}/api/wallets/{{walletId}}/withdraw
+User-Id: {{userId}}
+Content-Type: application/json
+
+{"transaction_id": "withdraw-over", "amount": 999999}
+
+### 출금 실패 - 소유자 아님
+POST {{baseUrl}}/api/wallets/{{walletId}}/withdraw
+User-Id: 2
+Content-Type: application/json
+
+{"transaction_id": "withdraw-other", "amount": 1000}
+
+### 출금 실패 - amount 0
+POST {{baseUrl}}/api/wallets/{{walletId}}/withdraw
+User-Id: {{userId}}
+Content-Type: application/json
+
+{"transaction_id": "withdraw-zero", "amount": 0}

@@ -9,7 +9,10 @@ import org.springframework.web.method.support.ModelAndViewContainer
 class AuthUserIdArgumentResolver : HandlerMethodArgumentResolver {
     override fun supportsParameter(parameter: MethodParameter): Boolean =
         parameter.hasParameterAnnotation(AuthUserId::class.java) &&
-            parameter.parameterType == Long::class.javaObjectType
+            (
+                parameter.parameterType == Long::class.javaObjectType ||
+                    parameter.parameterType == Long::class.javaPrimitiveType
+            )
 
     override fun resolveArgument(
         parameter: MethodParameter,

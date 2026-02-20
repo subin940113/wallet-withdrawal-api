@@ -23,7 +23,7 @@ class WalletRepositoryTest {
     private lateinit var repository: WalletRepository
 
     @Test
-    fun `잔액이 충분하면 차감되고 1을 반환한다`() {
+    fun `잔액이 충분하면 차감되고 차감 후 잔액을 반환한다`() {
         val wallet = repository.save(Wallet(ownerUserId = 1L, balance = 100L))
         entityManager.flush()
         entityManager.clear()
@@ -31,34 +31,32 @@ class WalletRepositoryTest {
         val walletId = wallet.id!!
         val beforeUpdatedAt = repository.findById(walletId).orElseThrow().updatedAt
 
-        val updated = repository.decreaseIfEnough(walletId, 60L)
-        assertThat(updated).isEqualTo(1)
+        val balanceAfter = repository.decreaseIfEnoughReturningBalance(walletId, 60L)
+        assertThat(balanceAfter).isEqualTo(40L)
 
         entityManager.flush()
         entityManager.clear()
 
         val after = repository.findById(walletId).orElseThrow()
-
         assertThat(after.balance).isEqualTo(40L)
         assertThat(after.updatedAt).isAfterOrEqualTo(beforeUpdatedAt)
     }
 
     @Test
-    fun `잔액이 부족하면 차감되지 않고 0을 반환한다`() {
+    fun `잔액이 부족하면 차감되지 않고 null을 반환한다`() {
         val wallet = repository.save(Wallet(ownerUserId = 1L, balance = 10L))
         entityManager.flush()
         entityManager.clear()
 
         val walletId = wallet.id!!
 
-        val updated = repository.decreaseIfEnough(walletId, 60L)
-        assertThat(updated).isEqualTo(0)
+        val balanceAfter = repository.decreaseIfEnoughReturningBalance(walletId, 60L)
+        assertThat(balanceAfter).isNull()
 
         entityManager.flush()
         entityManager.clear()
 
         val after = repository.findById(walletId).orElseThrow()
-
         assertThat(after.balance).isEqualTo(10L)
     }
 }

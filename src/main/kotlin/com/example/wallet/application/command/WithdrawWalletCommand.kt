@@ -1,6 +1,6 @@
-package com.example.wallet.application.withdraw
+package com.example.wallet.application.command
 
-data class WithdrawCommand(
+data class WithdrawWalletCommand(
     val walletId: Long,
     val ownerUserId: Long,
     val transactionId: String,

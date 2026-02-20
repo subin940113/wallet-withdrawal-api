@@ -1,7 +1,8 @@
-package com.example.wallet.application.withdraw
+package com.example.wallet.application
 
-import com.example.wallet.common.error.BusinessException
+import com.example.wallet.application.command.WithdrawWalletCommand
 import com.example.wallet.common.error.ErrorCode
+import com.example.wallet.common.exception.BusinessException
 import com.example.wallet.domain.transaction.Transaction
 import com.example.wallet.domain.transaction.TransactionRepository
 import com.example.wallet.domain.transaction.TransactionStatus
@@ -12,22 +13,25 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionTemplate
 
 @Service
-class WithdrawUseCase(
+class WithdrawWalletUseCase(
     private val transactionTemplate: TransactionTemplate,
     private val walletRepository: WalletRepository,
     private val transactionRepository: TransactionRepository,
     private val lockExecutor: DistributedLockExecutor,
 ) {
-    fun withdraw(command: WithdrawCommand): Long {
+    fun withdraw(command: WithdrawWalletCommand) {
         validate(command)
 
-        // 이미 처리된 거래라면 기존 결과를 그대로 반환 (멱등 처리)
+        // 이미 처리된 거래라면 기존 결과 그대로 반환 (멱등: 성공이면 완료, 실패면 동일 예외)
         transactionRepository.findByTransactionId(command.transactionId)
-            ?.let { return restoreFromSnapshot(it) }
+            ?.let {
+                restoreFromSnapshot(it)
+                return
+            }
 
         val lockKey = LOCK_KEY_PREFIX + command.walletId
 
-        return lockExecutor.execute(lockKey) {
+        lockExecutor.execute(lockKey) {
             transactionTemplate.execute {
                 doWithdrawInternal(command)
             } ?: throw BusinessException(ErrorCode.INTERNAL_ERROR)
@@ -37,10 +41,13 @@ class WithdrawUseCase(
     /**
      * 출금 비즈니스 로직을 수행한다.
      */
-    private fun doWithdrawInternal(command: WithdrawCommand): Long {
+    private fun doWithdrawInternal(command: WithdrawWalletCommand) {
         // 락 획득 이후 다시 한 번 멱등 확인 (동시성 방어)
         transactionRepository.findByTransactionId(command.transactionId)
-            ?.let { return restoreFromSnapshot(it) }
+            ?.let {
+                restoreFromSnapshot(it)
+                return
+            }
 
         // 지갑 소유자 검증
         authorize(command)
@@ -63,8 +70,6 @@ class WithdrawUseCase(
             command,
             Transaction.success(command, balanceAfter),
         )
-
-        return balanceAfter
     }
 
     /**
@@ -73,7 +78,7 @@ class WithdrawUseCase(
      * 이미 처리된 기존 스냅샷을 조회하여 동일한 결과로 복구한다.
      */
     private fun persistSnapshotOrRestore(
-        command: WithdrawCommand,
+        command: WithdrawWalletCommand,
         snapshot: Transaction,
     ) {
         try {
@@ -88,30 +93,25 @@ class WithdrawUseCase(
     }
 
     /**
-     * 이미 처리된 거래 스냅샷이 성공이면 잔액을 반환하고,
-     * 실패이면 동일한 예외를 재현한다.
+     * 이미 처리된 거래 스냅샷: 성공이면 완료, 실패면 동일한 예외를 재현한다.
      */
-    private fun restoreFromSnapshot(transaction: Transaction): Long =
+    private fun restoreFromSnapshot(transaction: Transaction) {
         when (transaction.status) {
-            TransactionStatus.SUCCESS ->
-                requireNotNull(transaction.balanceAfter) {
-                    "SUCCESS transaction must have balanceAfter"
-                }
-
+            TransactionStatus.SUCCESS -> Unit
             TransactionStatus.FAILED -> {
                 val errorCode =
                     transaction.failureReason
                         ?.let { runCatching { ErrorCode.valueOf(it) }.getOrNull() }
                         ?: ErrorCode.INTERNAL_ERROR
-
                 throw BusinessException(errorCode)
             }
         }
+    }
 
     /**
      * 출금 요청의 기본 유효성을 검증한다.
      */
-    private fun validate(command: WithdrawCommand) {
+    private fun validate(command: WithdrawWalletCommand) {
         if (command.amount <= 0L) {
             throw BusinessException(ErrorCode.INVALID_REQUEST)
         }
@@ -120,7 +120,7 @@ class WithdrawUseCase(
     /**
      * 요청자가 해당 지갑의 소유자인지 확인한다.
      */
-    private fun authorize(command: WithdrawCommand) {
+    private fun authorize(command: WithdrawWalletCommand) {
         walletRepository.findByIdAndOwnerUserId(command.walletId, command.ownerUserId)
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
     }
