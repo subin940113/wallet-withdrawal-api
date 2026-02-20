@@ -1,5 +1,7 @@
 package com.example.wallet.domain.transaction
 
+import com.example.wallet.application.withdraw.WithdrawCommand
+import com.example.wallet.common.error.ErrorCode
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -36,4 +38,32 @@ class Transaction(
 
     @Column(name = "updated_at", nullable = false)
     var updatedAt: LocalDateTime = LocalDateTime.now()
+
+    companion object {
+        fun success(
+            command: WithdrawCommand,
+            balanceAfter: Long,
+        ): Transaction =
+            Transaction(
+                transactionId = command.transactionId,
+                walletId = command.walletId,
+                amount = command.amount,
+                status = TransactionStatus.SUCCESS,
+                balanceAfter = balanceAfter,
+                failureReason = null,
+            )
+
+        fun failure(
+            command: WithdrawCommand,
+            errorCode: ErrorCode,
+        ): Transaction =
+            Transaction(
+                transactionId = command.transactionId,
+                walletId = command.walletId,
+                amount = command.amount,
+                status = TransactionStatus.FAILED,
+                balanceAfter = null,
+                failureReason = errorCode.name,
+            )
+    }
 }

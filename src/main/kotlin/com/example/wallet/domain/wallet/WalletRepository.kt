@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
-interface WalletRepository : JpaRepository<Wallet, Long> {
+interface WalletRepository : JpaRepository<Wallet, Long>, WalletRepositoryCustom {
     /**
      * 잔액이 충분할 때만 차감한다.
      * @return 1(성공), 0(잔액 부족 또는 미존재)
