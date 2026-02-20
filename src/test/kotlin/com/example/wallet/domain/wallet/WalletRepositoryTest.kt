@@ -1,24 +1,26 @@
 package com.example.wallet.domain.wallet
 
-import com.example.wallet.support.AbstractPostgresContainerTest
+import com.example.wallet.TestcontainersConfiguration
+import jakarta.persistence.EntityManager
+import jakarta.persistence.PersistenceContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.ImportAutoConfiguration
-import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.annotation.Import
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.transaction.annotation.Transactional
 
-@DataJpaTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@ImportAutoConfiguration(FlywayAutoConfiguration::class)
-class WalletRepositoryTest : AbstractPostgresContainerTest() {
+@Import(TestcontainersConfiguration::class)
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
+class WalletRepositoryTest {
+    @PersistenceContext
+    private lateinit var entityManager: EntityManager
+
     @Autowired
     private lateinit var repository: WalletRepository
-
-    @Autowired
-    private lateinit var entityManager: TestEntityManager
 
     @Test
     fun `잔액이 충분하면 차감되고 1을 반환한다`() {

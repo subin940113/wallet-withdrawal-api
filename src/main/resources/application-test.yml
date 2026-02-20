@@ -1,0 +1,11 @@
+spring:
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+wallet:
+  lock:
+    wait-seconds: 15
+    lease-seconds: 15
