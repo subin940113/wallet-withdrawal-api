@@ -6,14 +6,10 @@
 
 CI에는 포함하지 않으며, 로컬 실행 가이드만 제공합니다.
 
----
-
 ## 1. 사전 준비
 
 - [k6](https://k6.io/docs/get-started/installation/)를 설치합니다.
 - Docker(Postgres, Redis)가 필요합니다.
-
----
 
 ## 2. 실행 순서
 
@@ -41,9 +37,7 @@ CI에는 포함하지 않으며, 로컬 실행 가이드만 제공합니다.
    환경변수를 지정할 때는 다음 예를 참고합니다.
    ```bash
    BASE_URL=http://localhost:8080 WALLET_ID=1 OWNER_USER_ID=1 k6 run loadtest/k6/withdraw.js
-   ```
-
----
+```
 
 ## 3. 환경변수
 
@@ -53,8 +47,6 @@ CI에는 포함하지 않으며, 로컬 실행 가이드만 제공합니다.
 | WALLET_ID | 1 | 출금 대상 지갑 ID입니다. |
 | OWNER_USER_ID | 1 | User-Id 헤더 값입니다. |
 | SHARED_TX_ID | (자동) | Scenario B에서 사용할 공통 transactionId입니다. (선택) |
-
----
 
 ## 4. 시나리오·옵션
 

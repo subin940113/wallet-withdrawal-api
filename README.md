@@ -4,8 +4,6 @@
 
 분산락(Redis)과 단일 SQL 조건 기반 차감을 함께 사용하며, 멱등성(transactionId 기반)을 지원합니다.
 
----
-
 ## 목차
 
 1. [기술 스택 및 환경](#1-기술-스택-및-환경)
@@ -19,8 +17,6 @@
 9. [부하테스트 (k6, Before/After)](#9-부하테스트-k6-beforeafter)
 10. [테스트](#10-테스트)
 
----
-
 ## 1. 기술 스택 및 환경
 
 | 구분 | 기술 |
@@ -29,8 +25,6 @@
 | 프레임워크 | Spring Boot 3+, Spring Data JPA |
 | DB | PostgreSQL 16 (Flyway 마이그레이션) |
 | 인프라 | Redis 7 (분산락), Docker Compose 로컬 구성 |
-
----
 
 ## 2. 패키지 구조
 
@@ -54,8 +48,6 @@ com.example.wallet
     ├── error/
     └── exception/
 ```
-
----
 
 ## 3. 실행 방법
 
@@ -91,8 +83,6 @@ docker compose up -d
 
 - 기본 포트 : **8080**
 - Postgres·Redis가 `localhost:5432`, `localhost:6379`에서 동작 중이어야 합니다.
-
----
 
 ## 4. API
 
@@ -145,8 +135,6 @@ docker compose up -d
 }
 ```
 
----
-
 ### 4.2 거래내역 조회 API
 
 #### GET /api/wallets/{walletId}/transactions
@@ -183,8 +171,6 @@ docker compose up -d
 }
 ```
 
----
-
 ### 출금 흐름
 
 ```mermaid
@@ -205,16 +191,12 @@ sequenceDiagram
     U-->>C: 완료
 ```
 
----
-
 ## 5. 보안
 
 - Gateway에서 인증이 완료된 요청이 전달된다고 가정합니다.
 - **User-Id** 헤더로 사용자를 식별하며, `@Authenticated`가 붙은 API는 해당 헤더가 필수입니다.
 - User-Id 누락 시 HTTP `401` (Unauthorized), 형식 오류 시 HTTP `400` (Bad Request)을 반환합니다. Body로 사용자 ID를 보내는 방식은 허용하지 않습니다.
 - actuator 경로는 excludePathPatterns로 인증을 제외합니다.
-
----
 
 ## 6. 에러 코드
 
@@ -229,9 +211,6 @@ sequenceDiagram
 | INTERNAL_ERROR | 500 | 내부 오류 |
 
 > 클라이언트는 응답 body의 `error.code` 값을 기준으로 분기 처리합니다.
-
----
-
 
 ## 7. 분산락(Redis)
 
@@ -248,8 +227,6 @@ RETURNING balance;
 ```
 
 > 조건을 만족하는 경우에만 잔액을 차감하고, 성공 시 변경된 balance를 반환합니다. 지갑 소유자 검증(owner_user_id)은 UseCase `authorize()`에서 별도로 처리합니다.
-
----
 
 ### 7.2 설계 결정
 
@@ -293,16 +270,12 @@ RETURNING balance;
 - **모니터링** : 락 대기 시간, Redis 장애, WALLET_BUSY 발생률을 지표로 수집해 이상 시 알림을 받도록 합니다.
 - **복합 로직 시 비관적 락 검토** : 향후 잔액·거래내역을 함께 조회·계산하는 복합 로직이 생기면 `SELECT ... FOR UPDATE` 등 DB 비관적 락 도입을 검토합니다. 현 요구사항 범위에서는 분산락 + 단일 SQL 조건 기반 차감 조합을 적용했습니다.
 
----
-
 ### 7.3 용어 설명
 
 **단일 SQL 조건 기반 차감**이란,
 
 `balance >= amount` 조건을 포함한 하나의 UPDATE 문으로 잔액을 차감하는 방식입니다.  
 조회-검사-저장을 분리하지 않기 때문에 동시성 충돌을 줄입니다.
-
----
 
 ## 8. 동시성 테스트 결과
 
@@ -349,8 +322,6 @@ After(다른 txId): threadCount=20, successCount=5, failureCount=15, finalBalanc
 
 `build/reports/tests/test/index.html`
 
----
-
 ## 9. 부하테스트 (k6, 전후 비교)
 
 부하테스트는 성능·동시성·멱등성 제어가 의도대로 동작하는지 확인하기 위해 진행합니다. `main` 브랜치와 `feature/no-concurrency-control` 브랜치를 `git checkout`으로 바꿔가며 동일 k6 스크립트로 실행합니다.
@@ -371,8 +342,6 @@ BASE_URL=http://localhost:8080 WALLET_ID=1 OWNER_USER_ID=1 k6 run loadtest/k6/wi
 
 스크립트 설정·시나리오는 [loadtest/README.md](loadtest/README.md) 참고.
 
----
-
 ### 기대값
 
 부하테스트는 Scenario A(0~30초) + Scenario B(35~65초)로 구성됩니다.
@@ -384,8 +353,6 @@ BASE_URL=http://localhost:8080 WALLET_ID=1 OWNER_USER_ID=1 k6 run loadtest/k6/wi
 | **합계** | 1,200회 | — | **601건** |
 
 지갑 1 초기 잔액 10,000,000 − (601 × 10,000) = **3,990,000** 이 기대 최종 잔액입니다.
-
----
 
 ### `main` (동시성·멱등성 제어 적용) 실제 데이터
 
@@ -414,8 +381,6 @@ BASE_URL=http://localhost:8080 WALLET_ID=1 OWNER_USER_ID=1 k6 run loadtest/k6/wi
 
 **설명** : 분산락으로 동일 지갑 요청이 직렬화되어, Scenario A 600건이 모두 반영되고 balance_after가 순차적으로 감소합니다. Scenario B는 transactionId 멱등 처리로 600회 요청이 1건만 저장됩니다. 결과적으로 transactions 601건, 잔액 3,990,000으로 기대값과 일치합니다.
 
----
-
 ### `feature/no-concurrency-control` (동시성·멱등성 제어 미적용) 실제 데이터
 
 분산락·멱등 처리를 하지 않고, DB 기본 기능만으로 동작하는 상태입니다.
@@ -440,8 +405,6 @@ BASE_URL=http://localhost:8080 WALLET_ID=1 OWNER_USER_ID=1 k6 run loadtest/k6/wi
 
 **설명** : 동시 요청 처리 과정에서 일부 트랜잭션 반영이 누락되었으며, 동일한 balance_after 값이 여러 건 기록되었습니다. 세부 원인은 8장 테스트 코드 및 해당 브랜치 구현을 참고합니다.
 
----
-
 ### 비교 요약
 
 | 항목 | 기대값 | `main` (동시성·멱등 제어 O) | `feature/no-concurrency-control` (동시성·멱등 제어 X) |
@@ -452,8 +415,6 @@ BASE_URL=http://localhost:8080 WALLET_ID=1 OWNER_USER_ID=1 k6 run loadtest/k6/wi
 | balance_after 순차성 | 감소만 | 정상 | 상위 구간에 동일 값 반복 |
 
 `main`에서는 기대값과 일치하고, `feature/no-concurrency-control`에서는 경합으로 9건 누락·잔액 90,000 초과가 발생했습니다. 분산락과 멱등 처리로 `main`에서 동시성·멱등성이 의도대로 동작함을 확인했습니다.
-
----
 
 ### k6 수치 (참고)
 
@@ -472,8 +433,6 @@ BASE_URL=http://localhost:8080 WALLET_ID=1 OWNER_USER_ID=1 k6 run loadtest/k6/wi
 | p99 | 거의 최악에 가까운 지연 구간 |
 
 > p95/p99는 느린 요청 구간의 응답 시간을 의미합니다.
-
----
 
 ## 10. 테스트
 
