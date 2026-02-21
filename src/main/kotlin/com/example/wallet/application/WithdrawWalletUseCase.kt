@@ -7,57 +7,45 @@ import com.example.wallet.domain.transaction.Transaction
 import com.example.wallet.domain.transaction.TransactionRepository
 import com.example.wallet.domain.transaction.TransactionStatus
 import com.example.wallet.domain.wallet.WalletRepository
-import com.example.wallet.infrastructure.lock.DistributedLockExecutor
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
-import org.springframework.transaction.support.TransactionTemplate
+import org.springframework.transaction.annotation.Transactional
+import java.util.concurrent.locks.LockSupport
 
+/**
+ * 분산락·단일 SQL 조건 기반 차감 없이 처리하여
+ * 동시성 제어 미적용 시 정합성 위반이 발생함을 부하테스트로 비교한다.
+ */
 @Service
 class WithdrawWalletUseCase(
-    private val transactionTemplate: TransactionTemplate,
     private val walletRepository: WalletRepository,
     private val transactionRepository: TransactionRepository,
-    private val lockExecutor: DistributedLockExecutor,
 ) {
+    @Transactional
     fun withdraw(command: WithdrawWalletCommand) {
         validate(command)
 
-        // 이미 처리된 거래라면 기존 결과 그대로 반환 (멱등: 성공이면 완료, 실패면 동일 예외)
         transactionRepository.findByTransactionId(command.transactionId)
             ?.let {
                 restoreFromSnapshot(it)
                 return
             }
 
-        val lockKey = LOCK_KEY_PREFIX + command.walletId
-
-        lockExecutor.execute(lockKey) {
-            transactionTemplate.execute {
-                doWithdrawInternal(command)
-            } ?: throw BusinessException(ErrorCode.INTERNAL_ERROR)
-        }
+        doWithdrawInternal(command)
     }
 
-    /**
-     * 출금 비즈니스 로직을 수행한다.
-     */
     private fun doWithdrawInternal(command: WithdrawWalletCommand) {
-        // 락 획득 이후 다시 한 번 멱등 확인 (동시성 방어)
         transactionRepository.findByTransactionId(command.transactionId)
             ?.let {
                 restoreFromSnapshot(it)
                 return
             }
 
-        // 지갑 소유자 검증
-        authorize(command)
+        val wallet =
+            walletRepository.findByIdAndOwnerUserId(command.walletId, command.ownerUserId)
+                ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        // 잔액이 충분할 때만 차감하고, 차감 후 잔액을 반환
-        val balanceAfter =
-            walletRepository.decreaseIfEnoughReturningBalance(command.walletId, command.amount)
-
-        // 잔액 부족이면 실패 스냅샷 저장 후 예외 발생
-        if (balanceAfter == null) {
+        if (wallet.balance < command.amount) {
             persistSnapshotOrRestore(
                 command,
                 Transaction.failure(command, ErrorCode.INSUFFICIENT_BALANCE),
@@ -65,10 +53,14 @@ class WithdrawWalletUseCase(
             throw BusinessException(ErrorCode.INSUFFICIENT_BALANCE)
         }
 
-        // 성공 스냅샷 저장
+        LockSupport.parkNanos(1_000_000)
+
+        wallet.balance -= command.amount
+        walletRepository.saveAndFlush(wallet)
+
         persistSnapshotOrRestore(
             command,
-            Transaction.success(command, balanceAfter),
+            Transaction.success(command, wallet.balance),
         )
     }
 
@@ -93,7 +85,7 @@ class WithdrawWalletUseCase(
     }
 
     /**
-     * 이미 처리된 거래 스냅샷: 성공이면 완료, 실패면 동일한 예외를 재현한다.
+     * 이미 처리된 거래 스냅샷 : 성공이면 완료, 실패면 동일한 예외를 재현한다.
      */
     private fun restoreFromSnapshot(transaction: Transaction) {
         when (transaction.status) {
@@ -115,17 +107,5 @@ class WithdrawWalletUseCase(
         if (command.amount <= 0L) {
             throw BusinessException(ErrorCode.INVALID_REQUEST)
         }
-    }
-
-    /**
-     * 요청자가 해당 지갑의 소유자인지 확인한다.
-     */
-    private fun authorize(command: WithdrawWalletCommand) {
-        walletRepository.findByIdAndOwnerUserId(command.walletId, command.ownerUserId)
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-    }
-
-    companion object {
-        private const val LOCK_KEY_PREFIX = "WALLET_WITHDRAW:LOCK:WALLET:"
     }
 }
