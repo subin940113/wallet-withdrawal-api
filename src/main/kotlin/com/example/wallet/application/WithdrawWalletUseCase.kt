@@ -10,7 +10,6 @@ import com.example.wallet.domain.wallet.WalletRepository
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.util.concurrent.locks.LockSupport
 
 /**
  * 분산락·단일 SQL 조건 기반 차감 없이 처리하여
@@ -52,8 +51,6 @@ class WithdrawWalletUseCase(
             )
             throw BusinessException(ErrorCode.INSUFFICIENT_BALANCE)
         }
-
-        LockSupport.parkNanos(1_000_000)
 
         wallet.balance -= command.amount
         walletRepository.saveAndFlush(wallet)
