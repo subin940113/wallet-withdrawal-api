@@ -15,6 +15,7 @@ import org.junit.jupiter.api.TestMethodOrder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
+import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.support.TransactionTemplate
 import java.util.UUID
@@ -27,6 +28,7 @@ import java.util.concurrent.atomic.AtomicLong
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class WithdrawWalletUseCaseIntegrationTest {
     @Autowired

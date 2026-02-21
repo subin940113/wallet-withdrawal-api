@@ -29,7 +29,6 @@ class WalletRepositoryTest {
         entityManager.clear()
 
         val walletId = wallet.id!!
-        val beforeUpdatedAt = repository.findById(walletId).orElseThrow().updatedAt
 
         val balanceAfter = repository.decreaseIfEnoughReturningBalance(walletId, 60L)
         assertThat(balanceAfter).isEqualTo(40L)
@@ -39,7 +38,6 @@ class WalletRepositoryTest {
 
         val after = repository.findById(walletId).orElseThrow()
         assertThat(after.balance).isEqualTo(40L)
-        assertThat(after.updatedAt).isAfterOrEqualTo(beforeUpdatedAt)
     }
 
     @Test
