@@ -37,7 +37,7 @@ CI에는 포함하지 않으며, 로컬 실행 가이드만 제공합니다.
    환경변수를 지정할 때는 다음 예를 참고합니다.
    ```bash
    BASE_URL=http://localhost:8080 WALLET_ID=1 OWNER_USER_ID=1 k6 run loadtest/k6/withdraw.js
-```
+   ```
 
 ## 3. 환경변수
 
